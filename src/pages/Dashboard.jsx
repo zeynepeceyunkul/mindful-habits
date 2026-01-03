@@ -3,6 +3,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { getDailyQuote } from "../utils/dailyQuote";
 import { todayString } from "../utils/date";
 import { calculateStreak } from "../utils/streak";
+import HabitItem from "../components/HabitItem";
 
 const STORAGE_KEY = "habits";
 const JOURNAL_KEY = "journal";
@@ -24,8 +25,9 @@ export default function Dashboard({ habits, setHabits }) {
   const [habitTarget, setHabitTarget] = useState("");
   const [habitUnit, setHabitUnit] = useState("");
   const [habitIcon, setHabitIcon] = useState("✨");
-
   const [numericValues, setNumericValues] = useState({});
+const [deleteModalHabit, setDeleteModalHabit] = useState(null);
+const [lastDeletedHabit, setLastDeletedHabit] = useState(null);
 
   /* ---------------- DAILY QUOTE ---------------- */
   const [dailyQuote] = useState(() => {
@@ -50,20 +52,58 @@ export default function Dashboard({ habits, setHabits }) {
   }, [journal]);
 
   /* ---------------- HELPERS ---------------- */
-  const isCompletedToday = (habit) =>
-    habit.completedDates.some((c) =>
-      typeof c === "string" ? c === today : c.date === today
+  const getTodayNumericValue = (habit) => {
+  const entry = habit.completedDates.find(
+    (c) => typeof c === "object" && c.date === today
+  );
+  return entry ? entry.value : 0;
+};
+
+  const isCompletedToday = (habit) => {
+  if (habit.type === "boolean") {
+    return habit.completedDates.includes(today);
+  }
+
+  if (habit.type === "numeric") {
+    const entry = habit.completedDates.find(
+      (c) => typeof c === "object" && c.date === today
     );
+
+    return entry && habit.target
+      ? entry.value >= habit.target
+      : false;
+  }
+
+  return false;
+};
+
 
   /* ---------------- DERIVED DATA ---------------- */
   const todaysHabits = habits.filter(
-    (h) => h.startDate.split("T")[0] <= today
-  );
+  (h) =>
+    (h.paused ?? false) === false &&
+    h.startDate.split("T")[0] <= today
+);
 
-  const completedToday = habits.filter(isCompletedToday).length;
-const completionPercent = habits.length
-  ? Math.round((completedToday / habits.length) * 100)
+
+  // DONE OLANLARI ALTA TAŞI
+const sortedHabits = [
+  ...todaysHabits.filter((h) => !isCompletedToday(h)),
+  ...todaysHabits.filter((h) => isCompletedToday(h)),
+];
+
+  const completedToday = habits.filter(
+  (h) => !h.paused && isCompletedToday(h)
+).length;
+
+const activeHabits = habits.filter((h) => !h.paused);
+
+const completionPercent = activeHabits.length
+  ? Math.round(
+      (completedToday / activeHabits.length) * 100
+    )
   : 0;
+
 
   const bestStreak =
     habits.length > 0
@@ -71,41 +111,59 @@ const completionPercent = habits.length
       : 0;
 
   /* ---------------- ACTIONS ---------------- */
+  // eslint-disable-next-line no-unused-vars
+ const deleteHabit = (habit) => {
+  setHabits((prev) => prev.filter((h) => h.id !== habit.id));
+  setLastDeletedHabit(habit);
+
+  // 5 saniye sonra undo iptal
+  setTimeout(() => {
+    setLastDeletedHabit(null);
+  }, 5000);
+};
+
+
   const toggleHabit = (id) => {
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id !== id
-          ? h
-          : {
-              ...h,
-              completedDates: h.completedDates.includes(today)
-                ? h.completedDates.filter((d) => d !== today)
-                : [...h.completedDates, today],
-            }
-      )
-    );
-  };
+  setHabits((prev) =>
+    prev.map((h) => {
+      if (h.id !== id) return h;
+      if (h.paused) return h; // ⏸ pause koruması
+
+      return {
+        ...h,
+        completedDates: h.completedDates.includes(today)
+          ? h.completedDates.filter((d) => d !== today)
+          : [...h.completedDates, today],
+      };
+    })
+  );
+};
+
+
+
 
   const saveNumericHabit = (habit) => {
-    const value = numericValues[habit.id];
-    if (!value) return;
+  const value = Number(numericValues[habit.id]);
+  if (!value) return;
 
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id !== habit.id
-          ? h
-          : {
-              ...h,
-              completedDates: [
-                ...h.completedDates,
-                { date: today, value: Number(value) },
-              ],
-            }
-      )
-    );
+  setHabits((prev) =>
+    prev.map((h) => {
+      if (h.id !== habit.id) return h;
 
-    setNumericValues((prev) => ({ ...prev, [habit.id]: "" }));
-  };
+      const filtered = h.completedDates.filter(
+        (c) => typeof c === "string" || c.date !== today
+      );
+
+      return {
+        ...h,
+        completedDates: [...filtered, { date: today, value }],
+      };
+    })
+  );
+
+  setNumericValues((prev) => ({ ...prev, [habit.id]: "" }));
+};
+
 
   const onDragEnd = (result) => {
     if (!result.destination) return;
@@ -128,6 +186,7 @@ const completionPercent = habits.length
       icon: habitIcon,
       startDate: new Date().toISOString(),
       completedDates: [],
+      paused: false,
     };
 
     if (habitType === "numeric") {
@@ -212,74 +271,51 @@ const completionPercent = habits.length
                 {...provided.droppableProps}
                 className="space-y-2"
               >
-                {todaysHabits.map((habit, index) => {
+                {sortedHabits.map((habit, index) => {
+
                   const done = isCompletedToday(habit);
 
                   return (
                     <Draggable
-                      key={habit.id}
-                      draggableId={habit.id}
-                      index={index}
-                    >
-                      {(provided) => (
-                        <li
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          className={`flex items-center justify-between px-3 py-2 rounded-xl border ${
-                            done
-                              ? "bg-slate-100 text-slate-400"
-                              : "bg-slate-50 border-slate-200"
-                          }`}
-                        >
-                          <div
-                            {...provided.dragHandleProps}
-                            className="flex items-center gap-2"
-                          >
-                            <span className="cursor-grab text-slate-400">☰</span>
-                            <span className="text-lg">{habit.icon}</span>
-                            <span className={done ? "line-through" : ""}>
-                              {habit.title}
-                            </span>
-                          </div>
+  key={habit.id}
+  draggableId={habit.id}
+  index={index}
+>
+  {(provided) => (
+    <HabitItem
+  habit={habit}
+  done={done}
+  innerRef={provided.innerRef}
+  draggableProps={provided.draggableProps}
+  dragHandleProps={provided.dragHandleProps}
+  numericValue={numericValues[habit.id] || ""}
+  setNumericValue={(val) =>
+    setNumericValues((prev) => ({
+      ...prev,
+      [habit.id]: val,
+    }))
+  }
+  toggleHabit={toggleHabit}
+  saveNumericHabit={saveNumericHabit}
+  setDeleteModalHabit={setDeleteModalHabit}
+  // ✅ BU SATIR ŞART
+  todayValue={getTodayNumericValue(habit)}
+  progressPercent={
+    habit.type === "numeric" && habit.target
+      ? Math.min(
+          100,
+          Math.round(
+            (getTodayNumericValue(habit) / habit.target) * 100
+          )
+        )
+      : 0
+  }
+/>
 
-                          {habit.type === "boolean" && (
-                            <button
-                              onClick={() => toggleHabit(habit.id)}
-                              className={`px-3 py-1 rounded-xl text-white ${
-                                done
-                                  ? "bg-slate-400"
-                                  : "bg-emerald-400 hover:bg-emerald-500"
-                              }`}
-                            >
-                              {done ? "Done" : "Check"}
-                            </button>
-                          )}
+    
+  )}
+</Draggable>
 
-                          {habit.type === "numeric" && !done && (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                value={numericValues[habit.id] || ""}
-                                onChange={(e) =>
-                                  setNumericValues((prev) => ({
-                                    ...prev,
-                                    [habit.id]: e.target.value,
-                                  }))
-                                }
-                                placeholder={habit.unit}
-                                className="w-20 p-1 text-sm border border-slate-300 rounded-lg"
-                              />
-                              <button
-                                onClick={() => saveNumericHabit(habit)}
-                                className="px-2 py-1 text-sm rounded-lg bg-indigo-500 text-white"
-                              >
-                                Save
-                              </button>
-                            </div>
-                          )}
-                        </li>
-                      )}
-                    </Draggable>
                   );
                 })}
                 {provided.placeholder}
@@ -325,8 +361,53 @@ const completionPercent = habits.length
               value={newHabitTitle}
               onChange={(e) => setNewHabitTitle(e.target.value)}
               placeholder="Habit title"
+
               className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
             />
+            {/* HABIT TYPE */}
+<div className="flex gap-2">
+  <button
+    onClick={() => setHabitType("boolean")}
+    className={`flex-1 py-2 rounded-xl border ${
+      habitType === "boolean"
+        ? "bg-indigo-500 text-white"
+        : "bg-slate-100"
+    }`}
+  >
+    Boolean
+  </button>
+
+  <button
+    onClick={() => setHabitType("numeric")}
+    className={`flex-1 py-2 rounded-xl border ${
+      habitType === "numeric"
+        ? "bg-indigo-500 text-white"
+        : "bg-slate-100"
+    }`}
+  >
+    Numeric
+  </button>
+</div>
+{/* NUMERIC SETTINGS */}
+{habitType === "numeric" && (
+  <div className="flex gap-2">
+    <input
+      type="number"
+      value={habitTarget}
+      onChange={(e) => setHabitTarget(e.target.value)}
+      placeholder="Target"
+      className="w-1/2 p-2 bg-slate-50 border border-slate-200 rounded-xl"
+    />
+
+    <input
+      value={habitUnit}
+      onChange={(e) => setHabitUnit(e.target.value)}
+      placeholder="Unit (e.g. dk)"
+      className="w-1/2 p-2 bg-slate-50 border border-slate-200 rounded-xl"
+    />
+  </div>
+)}
+
 
             <div className="flex gap-2">
               {["✨", "💧", "🏃‍♀️", "📖", "🧘‍♀️", "📝"].map((icon) => (
@@ -358,8 +439,60 @@ const completionPercent = habits.length
             </div>
           </div>
         </div>
+        
       )}
+      {deleteModalHabit && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white rounded-2xl p-6 w-80 space-y-4 animate-scaleIn">
+      <h3 className="text-lg font-semibold">Delete Habit</h3>
+
+      <p className="text-sm text-slate-600">
+        Are you sure you want to delete
+        <strong className="ml-1">{deleteModalHabit.title}</strong>?
+      </p>
+
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => setDeleteModalHabit(null)}
+          className="px-3 py-1 rounded-xl"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={() => {
+            deleteHabit(deleteModalHabit);
+            setDeleteModalHabit(null);
+          }}
+          className="bg-red-500 text-white px-4 py-1 rounded-xl"
+        >
+          Delete
+        </button>
+      </div>
     </div>
+  </div>
+  
+)}
+{lastDeletedHabit && (
+  <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-4 py-2 rounded-xl flex items-center gap-4 shadow-lg">
+    <span>
+      "{lastDeletedHabit.title}" deleted
+    </span>
+
+    <button
+      onClick={() => {
+        setHabits((prev) => [...prev, lastDeletedHabit]);
+        setLastDeletedHabit(null);
+      }}
+      className="underline text-indigo-300 hover:text-indigo-200"
+    >
+      Undo
+    </button>
+  </div>
+)}
+
+    </div>
+    
   );
 }
 

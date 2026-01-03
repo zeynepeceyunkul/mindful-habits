@@ -2,3 +2,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* DONE HABIT ANIMATION */
+li.text-slate-400 {
+  opacity: 0.6;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+li.text-slate-400:hover {
+  opacity: 0.8;
+}
+li.text-slate-400 {
+  filter: grayscale(30%);
+}
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+
+.animate-shake {
+  animation: shake 0.3s;
+}

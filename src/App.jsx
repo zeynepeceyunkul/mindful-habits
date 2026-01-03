@@ -18,12 +18,13 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
   }, [habits]);
 
-  const toggleHabit = (id) => {
-    const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0];
 
+  /* ✅ BOOLEAN */
+  const toggleHabit = (id) => {
     setHabits((prev) =>
       prev.map((h) =>
-        h.id !== id
+        h.id !== id || h.paused
           ? h
           : {
               ...h,
@@ -35,20 +36,53 @@ export default function App() {
     );
   };
 
+  /* ✅ NUMERIC */
+  const saveNumericHabit = (id, value) => {
+    if (!value) return;
+
+    setHabits((prev) =>
+      prev.map((h) =>
+        h.id !== id
+          ? h
+          : {
+              ...h,
+              completedDates: [
+                ...h.completedDates.filter(
+                  (c) => typeof c === "string" || c.date !== today
+                ),
+                { date: today, value },
+              ],
+            }
+      )
+    );
+  };
+
   const deleteHabit = (id) => {
     setHabits((prev) => prev.filter((h) => h.id !== id));
+  };
+
+  const togglePause = (id) => {
+    setHabits((prev) =>
+      prev.map((h) =>
+        h.id === id ? { ...h, paused: !h.paused } : h
+      )
+    );
   };
 
   return (
     <BrowserRouter>
       <Routes>
-
-        {/* LAYOUT */}
         <Route element={<MainLayout />}>
           <Route
             path="/"
             element={
-              <Dashboard habits={habits} setHabits={setHabits} />
+              <Dashboard
+                habits={habits}
+                toggleHabit={toggleHabit}
+                saveNumericHabit={saveNumericHabit}
+                deleteHabit={deleteHabit}
+                togglePause={togglePause}
+              />
             }
           />
 
@@ -58,17 +92,15 @@ export default function App() {
               <Habits
                 habits={habits}
                 toggleHabit={toggleHabit}
+                saveNumericHabit={saveNumericHabit}
                 deleteHabit={deleteHabit}
+                togglePause={togglePause}
               />
             }
           />
 
-          <Route
-            path="/progress"
-            element={<Progress habits={habits} />}
-          />
+          <Route path="/progress" element={<Progress habits={habits} />} />
         </Route>
-
       </Routes>
     </BrowserRouter>
   );
