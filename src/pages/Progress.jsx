@@ -120,9 +120,14 @@ const days = [...Array(daysCount)].map((_, i) => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-10 pb-24">
-      <h1 className="text-3xl font-semibold text-slate-800">
-        Progress & Statistics
-      </h1>
+      <div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          Progress & Statistics
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Track your habits and see your progress over time
+        </p>
+      </div>
       <div className="flex gap-2 mt-4">
   <button
     onClick={() => setRange("7")}
@@ -151,25 +156,34 @@ const days = [...Array(daysCount)].map((_, i) => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <SummaryCard
           label="Best Streak"
-          value={`${bestStreak} 🔥`}
-          color="text-emerald-500"
+          value={bestStreak}
+          icon="🔥"
+          gradient="from-orange-50 to-red-50"
+          borderColor="border-orange-200"
+          textColor="text-orange-600"
         />
         <SummaryCard
           label="Total Completions"
           value={totalCompletions}
-          color="text-indigo-500"
+          icon="✅"
+          gradient="from-indigo-50 to-blue-50"
+          borderColor="border-indigo-200"
+          textColor="text-indigo-600"
         />
         <SummaryCard
           label="Completed Today"
           value={completedToday}
-          color="text-purple-500"
+          icon="📊"
+          gradient="from-purple-50 to-pink-50"
+          borderColor="border-purple-200"
+          textColor="text-purple-600"
         />
       </div>
 
       {/* WEEKLY CHART */}
-      <div className="bg-white border border-slate-200 p-5 rounded-2xl">
-        <h2 className="mb-3 font-medium text-slate-700">
-          Last 7 Days Completion
+      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+        <h2 className="mb-4 font-semibold text-slate-800 text-lg">
+          {range === "7" ? "Last 7 Days" : "Last 30 Days"} Completion
         </h2>
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={dailyCompletion}>
@@ -182,8 +196,8 @@ const days = [...Array(daysCount)].map((_, i) => {
       </div>
 
       {/* STRONGEST HABITS */}
-      <div className="bg-white border border-slate-200 p-5 rounded-2xl">
-        <h2 className="mb-3 font-medium text-slate-700">
+      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+        <h2 className="mb-4 font-semibold text-slate-800 text-lg">
           Strongest Habits
         </h2>
 
@@ -191,10 +205,10 @@ const days = [...Array(daysCount)].map((_, i) => {
           {strongestHabits.map((h) => (
             <li
               key={h.id}
-              className="flex justify-between items-center bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl"
+              className="flex justify-between items-center bg-gradient-to-r from-slate-50 to-indigo-50 border border-slate-200 px-4 py-3 rounded-xl hover:shadow-md transition-shadow"
             >
-              <span>{h.icon} {h.title}</span>
-              <span className="text-sm text-slate-500">
+              <span className="font-medium text-slate-700">{h.icon} {h.title}</span>
+              <span className="text-sm font-semibold text-indigo-600 bg-indigo-100 px-3 py-1 rounded-full">
                 🔥 {h.streak} days
               </span>
             </li>
@@ -204,15 +218,16 @@ const days = [...Array(daysCount)].map((_, i) => {
 
       {/* WEAK DAY */}
       {weakestDay && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
-          ⚠️ Weakest day: <strong>{weakestDay.date}</strong> (
-          {weakestDay.completed})
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl">
+          <p className="text-sm text-amber-800">
+            <span className="font-semibold">⚠️ Weakest day:</span> <strong>{weakestDay.date}</strong> ({weakestDay.completed} habits completed)
+          </p>
         </div>
       )}
 
       {/* STREAK LINE */}
-      <div className="bg-white border border-slate-200 p-5 rounded-2xl">
-        <h2 className="mb-3 font-medium text-slate-700">
+      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+        <h2 className="mb-4 font-semibold text-slate-800 text-lg">
           Habit Streaks
         </h2>
         <ResponsiveContainer width="100%" height={250}>
@@ -230,13 +245,13 @@ const days = [...Array(daysCount)].map((_, i) => {
       </div>
 
       {/* CONTRIBUTION */}
-      <div className="bg-white border border-slate-200 p-5 rounded-2xl">
+      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
         <ContributionCalendar habits={habits} />
       </div>
 
       {/* ACHIEVEMENTS */}
-      <div className="bg-white border border-slate-200 p-5 rounded-2xl">
-        <h2 className="mb-3 font-medium text-slate-700">
+      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+        <h2 className="mb-4 font-semibold text-slate-800 text-lg">
           Achievements
         </h2>
         <div className="flex flex-wrap gap-3">
@@ -245,30 +260,33 @@ const days = [...Array(daysCount)].map((_, i) => {
               b.condition(habits) && (
                 <div
                   key={b.id}
-                  className="bg-indigo-50 text-indigo-600 px-3 py-2 rounded-full text-sm"
+                  className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 text-indigo-700 px-4 py-2 rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-shadow"
                 >
                   {b.emoji} {b.label}
                 </div>
               )
+          )}
+          {badges.filter((b) => b.condition(habits)).length === 0 && (
+            <p className="text-sm text-slate-500">No achievements yet. Keep building your habits!</p>
           )}
         </div>
       </div>
 
       {/* NUMERIC HABITS SUMMARY */}
       {numericHabits.length > 0 && (
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl">
-          <h2 className="mb-3 font-medium text-slate-700">
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+          <h2 className="mb-4 font-semibold text-slate-800 text-lg">
             Numeric Habits Summary
           </h2>
           <ul className="space-y-2">
             {numericHabits.map((h) => (
               <li
                 key={h.id}
-                className="flex justify-between bg-slate-50 border px-3 py-2 rounded-xl"
+                className="flex justify-between bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 px-4 py-3 rounded-xl hover:shadow-md transition-shadow"
               >
-                <span>{h.icon} {h.title}</span>
-                <span className="text-sm text-slate-500">
-                  Total {h.total} {h.unit} | Avg {h.avg}
+                <span className="font-medium text-slate-700">{h.icon} {h.title}</span>
+                <span className="text-sm font-semibold text-blue-600">
+                  Total {h.total} {h.unit} | Avg {h.avg} {h.unit}
                 </span>
               </li>
             ))}
@@ -278,9 +296,9 @@ const days = [...Array(daysCount)].map((_, i) => {
 
       {/* NUMERIC HABITS – LAST 7 DAYS */}
       {numericHabits.length > 0 && (
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl">
-          <h2 className="mb-3 font-medium text-slate-700">
-            Numeric Habits – Last 7 Days
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+          <h2 className="mb-4 font-semibold text-slate-800 text-lg">
+            Numeric Habits – {range === "7" ? "Last 7 Days" : "Last 30 Days"}
           </h2>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={numericWeeklyData}>
@@ -297,11 +315,14 @@ const days = [...Array(daysCount)].map((_, i) => {
 }
 
 /* ---------------- SMALL COMPONENT ---------------- */
-function SummaryCard({ label, value, color }) {
+function SummaryCard({ label, value, icon, gradient, borderColor, textColor }) {
   return (
-    <div className="bg-white border border-slate-200 p-4 rounded-2xl">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
+    <div className={`bg-gradient-to-br ${gradient} border ${borderColor} p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow`}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-medium text-slate-600">{label}</p>
+        <span className="text-2xl">{icon}</span>
+      </div>
+      <p className={`text-3xl font-bold ${textColor}`}>{value}</p>
     </div>
   );
 }

@@ -5,6 +5,8 @@ import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import Habits from "./pages/Habits";
 import Progress from "./pages/Progress";
+import Journal from "./pages/Journal";
+import Reminders from "./pages/Reminders";
 
 const STORAGE_KEY = "habits";
 
@@ -78,6 +80,7 @@ export default function App() {
             element={
               <Dashboard
                 habits={habits}
+                setHabits={setHabits}
                 toggleHabit={toggleHabit}
                 saveNumericHabit={saveNumericHabit}
                 deleteHabit={deleteHabit}
@@ -91,6 +94,7 @@ export default function App() {
             element={
               <Habits
                 habits={habits}
+                setHabits={setHabits}
                 toggleHabit={toggleHabit}
                 saveNumericHabit={saveNumericHabit}
                 deleteHabit={deleteHabit}
@@ -100,6 +104,8 @@ export default function App() {
           />
 
           <Route path="/progress" element={<Progress habits={habits} />} />
+          <Route path="/journal" element={<Journal />} />
+          <Route path="/reminders" element={<Reminders />} />
         </Route>
       </Routes>
     </BrowserRouter>

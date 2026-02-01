@@ -58,20 +58,25 @@ export default function Habits({ habits, setHabits, toggleHabit, deleteHabit }) 
 
   /* -------- SAVE EDIT -------- */
   const saveEditHabit = () => {
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id !== editingId
-          ? h
-          : {
-              ...h,
-              title: editTitle,
-              type: editType,
-              icon: editIcon,
-              target: editType === "numeric" ? Number(editTarget) : undefined,
-              unit: editType === "numeric" ? editUnit : undefined,
-            }
-      )
-    );
+    if (!editTitle.trim()) return;
+    if (editType === "numeric" && (!editTarget || !editUnit)) return;
+
+    if (setHabits) {
+      setHabits((prev) =>
+        prev.map((h) =>
+          h.id !== editingId
+            ? h
+            : {
+                ...h,
+                title: editTitle,
+                type: editType,
+                icon: editIcon,
+                target: editType === "numeric" ? Number(editTarget) : undefined,
+                unit: editType === "numeric" ? editUnit : undefined,
+              }
+        )
+      );
+    }
 
     setIsEditOpen(false);
     setEditingId(null);
@@ -79,7 +84,14 @@ export default function Habits({ habits, setHabits, toggleHabit, deleteHabit }) 
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <h1 className="text-3xl font-semibold text-slate-800">My Habits</h1>
+      <div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          My Habits
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Manage and track all your habits
+        </p>
+      </div>
 
       {/* EMPTY STATE */}
       {habits.length === 0 && (
@@ -112,7 +124,7 @@ export default function Habits({ habits, setHabits, toggleHabit, deleteHabit }) 
           return (
             <li
               key={habit.id}
-              className="bg-white border border-slate-200 rounded-2xl p-5"
+              className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow"
             >
               {/* HEADER */}
               <div className="flex justify-between items-start gap-4">
@@ -151,18 +163,19 @@ export default function Habits({ habits, setHabits, toggleHabit, deleteHabit }) 
 
                 {/* ACTIONS */}
                 <button
-  onClick={() =>
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id !== habit.id
-          ? h
-          : { ...h, paused: !h.paused }
-      )
-    )
-  }
-  className={`px-3 py-1 rounded-xl text-sm ${
+  onClick={() => {
+    if (togglePause) {
+      togglePause(habit.id);
+    } else if (setHabits) {
+      setHabits((prev) =>
+        prev.map((h) =>
+          h.id !== habit.id ? h : { ...h, paused: !h.paused }
+        )
+      );
+    }
+  }}
+  className={`px-3 py-1 rounded-xl text-sm font-medium transition-colors ${
     isPaused
-
       ? "bg-indigo-400 hover:bg-indigo-500 text-white"
       : "bg-slate-300 hover:bg-slate-400 text-slate-800"
   }`}
@@ -173,21 +186,28 @@ export default function Habits({ habits, setHabits, toggleHabit, deleteHabit }) 
                 <div className="flex gap-2">
                   <button
   onClick={() => {
-    if (habit.paused) return;   // ✅ İŞTE TAM BURASI
-    toggleHabit(habit.id);
+    if (habit.paused) return;
+    if (toggleHabit) {
+      toggleHabit(habit.id);
+    }
   }}
-  className={`px-3 py-1 rounded-xl text-sm ${
+  disabled={habit.paused}
+  className={`px-3 py-1 rounded-xl text-sm font-medium transition-colors ${
     isDoneToday
-      ? "bg-slate-200 text-slate-500"
+      ? "bg-slate-200 text-slate-500 cursor-default"
       : "bg-emerald-400 hover:bg-emerald-500 text-white"
-  }`}
+  } ${habit.paused ? "opacity-50 cursor-not-allowed" : ""}`}
 >
   {isDoneToday ? "Done" : "Check"}
 </button>
 
                   <button
-                    onClick={() => deleteHabit(habit.id)}
-                    className="px-3 py-1 rounded-xl bg-rose-400 hover:bg-rose-500 text-white text-sm"
+                    onClick={() => {
+                      if (deleteHabit) {
+                        deleteHabit(habit.id);
+                      }
+                    }}
+                    className="px-3 py-1 rounded-xl bg-rose-400 hover:bg-rose-500 text-white text-sm font-medium transition-colors"
                   >
                     Delete
                   </button>
@@ -202,7 +222,7 @@ export default function Habits({ habits, setHabits, toggleHabit, deleteHabit }) 
                       setEditIcon(habit.icon);
                       setIsEditOpen(true);
                     }}
-                    className="px-3 py-1 rounded-xl bg-amber-300 hover:bg-amber-400 text-slate-800 text-sm"
+                    className="px-3 py-1 rounded-xl bg-amber-300 hover:bg-amber-400 text-slate-800 text-sm font-medium transition-colors"
                   >
                     Edit
                   </button>
@@ -289,29 +309,102 @@ export default function Habits({ habits, setHabits, toggleHabit, deleteHabit }) 
 
       {/* EDIT MODAL */}
       {isEditOpen && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-2xl w-96 space-y-4 border border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-800">Edit Habit</h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md space-y-4 border border-slate-200 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-800">Edit Habit</h2>
+              <button
+                onClick={() => setIsEditOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl"
+              >
+                ×
+              </button>
+            </div>
 
             <input
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
               placeholder="Habit title"
             />
+
+            {/* HABIT TYPE */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditType("boolean")}
+                className={`flex-1 py-2 rounded-xl border transition-colors ${
+                  editType === "boolean"
+                    ? "bg-indigo-500 text-white border-indigo-500"
+                    : "bg-slate-100 border-slate-200 hover:bg-slate-200"
+                }`}
+              >
+                Boolean
+              </button>
+
+              <button
+                onClick={() => setEditType("numeric")}
+                className={`flex-1 py-2 rounded-xl border transition-colors ${
+                  editType === "numeric"
+                    ? "bg-indigo-500 text-white border-indigo-500"
+                    : "bg-slate-100 border-slate-200 hover:bg-slate-200"
+                }`}
+              >
+                Numeric
+              </button>
+            </div>
+
+            {/* NUMERIC SETTINGS */}
+            {editType === "numeric" && (
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={editTarget}
+                  onChange={(e) => setEditTarget(e.target.value)}
+                  placeholder="Target"
+                  className="w-1/2 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+                />
+
+                <input
+                  value={editUnit}
+                  onChange={(e) => setEditUnit(e.target.value)}
+                  placeholder="Unit (e.g. dk)"
+                  className="w-1/2 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+                />
+              </div>
+            )}
+
+            {/* ICON SELECTOR */}
+            <div>
+              <label className="text-sm text-slate-600 mb-2 block">Icon</label>
+              <div className="flex gap-2 flex-wrap">
+                {["✨", "💧", "🏃‍♀️", "📖", "🧘‍♀️", "📝", "🏋️", "🎯", "🌱", "💪", "🧠", "❤️"].map((icon) => (
+                  <button
+                    key={icon}
+                    onClick={() => setEditIcon(icon)}
+                    className={`text-xl p-2 rounded-xl transition-all ${
+                      editIcon === icon
+                        ? "bg-indigo-100 border-2 border-indigo-500 scale-110"
+                        : "bg-slate-100 hover:bg-slate-200 border-2 border-transparent"
+                    }`}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setIsEditOpen(false)}
-                className="px-3 py-1 rounded-xl text-slate-600 hover:bg-slate-100"
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={saveEditHabit}
-                className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-1 rounded-xl"
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white px-6 py-2 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl"
               >
-                Save
+                Save Changes
               </button>
             </div>
           </div>

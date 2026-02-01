@@ -10,7 +10,7 @@ const JOURNAL_KEY = "journal";
 const QUOTE_KEY = "daily_quote";
 const QUOTE_DATE_KEY = "quote_date";
 
-export default function Dashboard({ habits, setHabits }) {
+export default function Dashboard({ habits, setHabits, toggleHabit: toggleHabitProp, saveNumericHabit: saveNumericHabitProp, deleteHabit: deleteHabitProp, togglePause }) {
   const today = todayString();
 
   /* ---------------- STATE ---------------- */
@@ -111,58 +111,65 @@ const completionPercent = activeHabits.length
       : 0;
 
   /* ---------------- ACTIONS ---------------- */
-  // eslint-disable-next-line no-unused-vars
- const deleteHabit = (habit) => {
-  setHabits((prev) => prev.filter((h) => h.id !== habit.id));
-  setLastDeletedHabit(habit);
+  const handleDeleteHabit = (habit) => {
+    if (deleteHabitProp) {
+      deleteHabitProp(habit.id);
+    } else if (setHabits) {
+      setHabits((prev) => prev.filter((h) => h.id !== habit.id));
+    }
+    setLastDeletedHabit(habit);
 
-  // 5 saniye sonra undo iptal
-  setTimeout(() => {
-    setLastDeletedHabit(null);
-  }, 5000);
-};
+    // 5 saniye sonra undo iptal
+    setTimeout(() => {
+      setLastDeletedHabit(null);
+    }, 5000);
+  };
 
+  const handleToggleHabit = (id) => {
+    if (toggleHabitProp) {
+      toggleHabitProp(id);
+    } else {
+      // Fallback to local implementation
+      setHabits((prev) =>
+        prev.map((h) => {
+          if (h.id !== id) return h;
+          if (h.paused) return h;
 
-  const toggleHabit = (id) => {
-  setHabits((prev) =>
-    prev.map((h) => {
-      if (h.id !== id) return h;
-      if (h.paused) return h; // ⏸ pause koruması
-
-      return {
-        ...h,
-        completedDates: h.completedDates.includes(today)
-          ? h.completedDates.filter((d) => d !== today)
-          : [...h.completedDates, today],
-      };
-    })
-  );
-};
-
-
-
-
-  const saveNumericHabit = (habit) => {
-  const value = Number(numericValues[habit.id]);
-  if (!value) return;
-
-  setHabits((prev) =>
-    prev.map((h) => {
-      if (h.id !== habit.id) return h;
-
-      const filtered = h.completedDates.filter(
-        (c) => typeof c === "string" || c.date !== today
+          return {
+            ...h,
+            completedDates: h.completedDates.includes(today)
+              ? h.completedDates.filter((d) => d !== today)
+              : [...h.completedDates, today],
+          };
+        })
       );
+    }
+  };
 
-      return {
-        ...h,
-        completedDates: [...filtered, { date: today, value }],
-      };
-    })
-  );
+  const handleSaveNumericHabit = (habit) => {
+    const value = Number(numericValues[habit.id]);
+    if (!value) return;
 
-  setNumericValues((prev) => ({ ...prev, [habit.id]: "" }));
-};
+    if (saveNumericHabitProp) {
+      saveNumericHabitProp(habit.id, value);
+    } else if (setHabits) {
+      setHabits((prev) =>
+        prev.map((h) => {
+          if (h.id !== habit.id) return h;
+
+          const filtered = h.completedDates.filter(
+            (c) => typeof c === "string" || c.date !== today
+          );
+
+          return {
+            ...h,
+            completedDates: [...filtered, { date: today, value }],
+          };
+        })
+      );
+    }
+    setNumericValues((prev) => ({ ...prev, [habit.id]: "" }));
+  };
 
 
   const onDragEnd = (result) => {
@@ -172,7 +179,10 @@ const completionPercent = activeHabits.length
     const [moved] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, moved);
 
-    setHabits(items);
+    // Use setHabits from props if available, otherwise use local state
+    if (setHabits) {
+      setHabits(items);
+    }
   };
 
   /* ---------------- ADD HABIT ---------------- */
@@ -195,7 +205,9 @@ const completionPercent = activeHabits.length
       newHabit.unit = habitUnit;
     }
 
-    setHabits((prev) => [...prev, newHabit]);
+    if (setHabits) {
+      setHabits((prev) => [...prev, newHabit]);
+    }
 
     setNewHabitTitle("");
     setHabitType("boolean");
@@ -216,16 +228,32 @@ const completionPercent = activeHabits.length
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {/* QUOTE */}
-      <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl text-center">
-        <p className="italic text-slate-700">“{dailyQuote}”</p>
+      <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border border-indigo-200 p-6 rounded-2xl text-center shadow-sm">
+        <div className="text-4xl mb-3">💭</div>
+        <p className="italic text-slate-800 text-lg font-medium leading-relaxed">
+          "{dailyQuote}"
+        </p>
+        <p className="text-xs text-slate-500 mt-3">Daily Inspiration</p>
       </div>
 
       {/* HEADER */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-semibold text-slate-800">Today</h1>
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Today
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+        </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl"
+          className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white px-6 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
         >
           + Add Habit
         </button>
@@ -233,31 +261,57 @@ const completionPercent = activeHabits.length
 
       {/* SUMMARY */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <SummaryCard label="Completed Today" value={completedToday} />
-        <SummaryCard label="Total Habits" value={habits.length} />
-        <SummaryCard label="Best Streak" value={`${bestStreak} 🔥`} />
+        <SummaryCard 
+          label="Completed Today" 
+          value={completedToday} 
+          icon="✅"
+          gradient="from-emerald-50 to-teal-50"
+          borderColor="border-emerald-200"
+          textColor="text-emerald-600"
+        />
+        <SummaryCard 
+          label="Total Habits" 
+          value={habits.length} 
+          icon="📋"
+          gradient="from-indigo-50 to-blue-50"
+          borderColor="border-indigo-200"
+          textColor="text-indigo-600"
+        />
+        <SummaryCard 
+          label="Best Streak" 
+          value={`${bestStreak}`} 
+          icon="🔥"
+          gradient="from-orange-50 to-red-50"
+          borderColor="border-orange-200"
+          textColor="text-orange-600"
+        />
       </div>
       {/* DAILY PROGRESS */}
-<div className="bg-white border border-slate-200 p-4 rounded-2xl">
-  <p className="text-sm text-slate-500 mb-1">
-    Daily Progress
-  </p>
+<div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+  <div className="flex items-center justify-between mb-3">
+    <p className="text-sm font-medium text-slate-700">
+      Daily Progress
+    </p>
+    <p className="text-sm font-bold text-indigo-600">
+      {completionPercent}%
+    </p>
+  </div>
 
-  <div className="w-full bg-slate-200 h-2 rounded-full">
+  <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
     <div
-      className="bg-indigo-500 h-2 rounded-full transition-all"
+      className="bg-gradient-to-r from-indigo-500 to-purple-500 h-3 rounded-full transition-all duration-500 ease-out shadow-sm"
       style={{ width: `${completionPercent}%` }}
     />
   </div>
 
-  <p className="text-xs text-slate-500 mt-1">
-    {completionPercent}% completed
+  <p className="text-xs text-slate-500 mt-2">
+    {completedToday} of {activeHabits.length} habits completed
   </p>
 </div>
 
       {/* TODAY'S HABITS */}
-      <div className="bg-white border border-slate-200 p-4 rounded-2xl">
-        <h2 className="font-medium text-slate-700 mb-3">Today’s Habits</h2>
+      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+        <h2 className="font-semibold text-slate-800 mb-4 text-lg">Today's Habits</h2>
 
         {todaysHabits.length === 0 && (
           <p className="text-sm text-slate-500">No habits for today ✨</p>
@@ -295,8 +349,8 @@ const completionPercent = activeHabits.length
       [habit.id]: val,
     }))
   }
-  toggleHabit={toggleHabit}
-  saveNumericHabit={saveNumericHabit}
+  toggleHabit={handleToggleHabit}
+  saveNumericHabit={handleSaveNumericHabit}
   setDeleteModalHabit={setDeleteModalHabit}
   // ✅ BU SATIR ŞART
   todayValue={getTodayNumericValue(habit)}
@@ -326,22 +380,30 @@ const completionPercent = activeHabits.length
       </div>
 
       {/* JOURNAL */}
-      <div className="bg-white border border-slate-200 p-4 rounded-2xl">
-        <h2 className="font-medium text-slate-700 mb-2">Quick Note</h2>
+      <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-slate-800 text-lg">Quick Note</h2>
+          <a 
+            href="/journal" 
+            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+          >
+            View Full Journal →
+          </a>
+        </div>
 
         <textarea
           rows={3}
           value={journalText}
           onChange={(e) => setJournalText(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 p-2 rounded-xl mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 resize-none"
           placeholder="Anything you want to note today?"
         />
 
         <button
           onClick={saveJournal}
-          className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded-xl"
+          className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
         >
-          Save
+          Save Note
         </button>
 
         {journal[today] && (
@@ -353,16 +415,23 @@ const completionPercent = activeHabits.length
 
       {/* ADD HABIT MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-2xl w-96 space-y-4 border border-slate-200">
-            <h2 className="text-lg font-semibold">Add New Habit</h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md space-y-4 border border-slate-200 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-800">Add New Habit</h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl"
+              >
+                ×
+              </button>
+            </div>
 
             <input
               value={newHabitTitle}
               onChange={(e) => setNewHabitTitle(e.target.value)}
               placeholder="Habit title"
-
-              className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
             />
             {/* HABIT TYPE */}
 <div className="flex gap-2">
@@ -423,18 +492,18 @@ const completionPercent = activeHabits.length
               ))}
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-3 py-1 rounded-xl"
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={addHabit}
-                className="bg-indigo-500 text-white px-4 py-1 rounded-xl"
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white px-6 py-2 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl"
               >
-                Add
+                Add Habit
               </button>
             </div>
           </div>
@@ -442,29 +511,29 @@ const completionPercent = activeHabits.length
         
       )}
       {deleteModalHabit && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div className="bg-white rounded-2xl p-6 w-80 space-y-4 animate-scaleIn">
-      <h3 className="text-lg font-semibold">Delete Habit</h3>
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+      <h3 className="text-lg font-bold text-slate-800">Delete Habit</h3>
 
       <p className="text-sm text-slate-600">
-        Are you sure you want to delete
-        <strong className="ml-1">{deleteModalHabit.title}</strong>?
+        Are you sure you want to delete{" "}
+        <strong className="text-slate-800">{deleteModalHabit.title}</strong>? This action cannot be undone.
       </p>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 pt-2">
         <button
           onClick={() => setDeleteModalHabit(null)}
-          className="px-3 py-1 rounded-xl"
+          className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
         >
           Cancel
         </button>
 
         <button
           onClick={() => {
-            deleteHabit(deleteModalHabit);
+            handleDeleteHabit(deleteModalHabit);
             setDeleteModalHabit(null);
           }}
-          className="bg-red-500 text-white px-4 py-1 rounded-xl"
+          className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-xl font-medium transition-colors shadow-lg"
         >
           Delete
         </button>
@@ -474,17 +543,19 @@ const completionPercent = activeHabits.length
   
 )}
 {lastDeletedHabit && (
-  <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-4 py-2 rounded-xl flex items-center gap-4 shadow-lg">
-    <span>
+  <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-xl flex items-center gap-4 shadow-2xl z-50 animate-slideUp">
+    <span className="font-medium">
       "{lastDeletedHabit.title}" deleted
     </span>
 
     <button
       onClick={() => {
-        setHabits((prev) => [...prev, lastDeletedHabit]);
+        if (setHabits) {
+          setHabits((prev) => [...prev, lastDeletedHabit]);
+        }
         setLastDeletedHabit(null);
       }}
-      className="underline text-indigo-300 hover:text-indigo-200"
+      className="underline text-indigo-300 hover:text-indigo-200 font-medium"
     >
       Undo
     </button>
@@ -497,11 +568,14 @@ const completionPercent = activeHabits.length
 }
 
 /* ---------------- SMALL COMPONENT ---------------- */
-function SummaryCard({ label, value }) {
+function SummaryCard({ label, value, icon, gradient, borderColor, textColor }) {
   return (
-    <div className="bg-white border border-slate-200 p-4 rounded-2xl">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="text-2xl font-bold text-indigo-600">{value}</p>
+    <div className={`bg-gradient-to-br ${gradient} border ${borderColor} p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow`}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-medium text-slate-600">{label}</p>
+        <span className="text-2xl">{icon}</span>
+      </div>
+      <p className={`text-3xl font-bold ${textColor}`}>{value}</p>
     </div>
   );
 }
